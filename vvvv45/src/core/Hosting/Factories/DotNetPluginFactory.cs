@@ -58,7 +58,11 @@ namespace VVVV.Hosting.Factories
         private readonly Dictionary<IPluginBase, ExportLifetimeContext<IPluginBase>> FPluginLifetimeContexts;
         private readonly Dictionary<IPluginBase, HostExportProvider> FPinExportProviders;
         private readonly CompositionContainer FParentContainer;
+
         private readonly Type FReflectionOnlyPluginBaseType;
+
+        private StartableRegistry FStartableRegistry; 
+
         protected Regex FDynamicRegExp = new Regex(@"(.*)\._dynamic_\.[0-9]+\.dll$");
 
         public Dictionary<string, IPluginBase> FNodesPath = new Dictionary<string, IPluginBase>();
@@ -84,6 +88,8 @@ namespace VVVV.Hosting.Factories
             var pluginInterfacesAssemblyName = typeof(IPluginBase).Assembly.FullName;
             var pluginInterfacesAssembly = Assembly.ReflectionOnlyLoad(pluginInterfacesAssemblyName);
             FReflectionOnlyPluginBaseType = pluginInterfacesAssembly.GetExportedTypes().Where(t => t.Name == typeof(IPluginBase).Name).First();
+
+            FStartableRegistry = new StartableRegistry(pluginInterfacesAssembly);
         }
 
         public event PluginCreatedDelegate PluginCreated;
@@ -158,6 +164,7 @@ namespace VVVV.Hosting.Factories
             if (!IsDotNetAssembly(filename)) return;
 
             bool containsV1Plugins = false;
+            bool nonLazyStartable = false;
             
             // Remember the current directory for later assembly resolution
             FCurrentAssemblyDir = Path.GetDirectoryName(filename);
@@ -168,7 +175,7 @@ namespace VVVV.Hosting.Factories
                 if (!type.IsAbstract && !type.IsGenericTypeDefinition && FReflectionOnlyPluginBaseType.IsAssignableFrom(type))
                 {
                     var attribute = GetPluginInfoAttributeData(type);
-                    
+
                     if (attribute != null)
                     {
                         // V2
@@ -182,6 +189,13 @@ namespace VVVV.Hosting.Factories
                         // V1. See below.
                         containsV1Plugins = true;
                     }
+                }
+
+                bool nonlazy = FStartableRegistry.ProcessType(type,assembly);
+
+                if (nonlazy) 
+                {
+                    nonLazyStartable = true;
                 }
             }
             
@@ -206,6 +220,12 @@ namespace VVVV.Hosting.Factories
                     }
                 }
             }
+
+            if (nonLazyStartable)
+            {
+                var assemblyload = Assembly.LoadFrom(filename);
+                FStartableRegistry.ProcessAssembly(assemblyload);
+            }
             
             foreach (var nodeInfo in nodeInfos)
             {
@@ -220,6 +240,14 @@ namespace VVVV.Hosting.Factories
             var attributes = CustomAttributeData.GetCustomAttributes(type).Where(ca => ca.Constructor.DeclaringType.FullName == typeof(PluginInfoAttribute).FullName).ToArray();
             return attributes.Length > 0 ? attributes[0] : null;
         }
+
+        private static CustomAttributeData GetStartableAttributeData(Type type)
+        {
+            var attributes = CustomAttributeData.GetCustomAttributes(type).Where(ca => ca.Constructor.DeclaringType.FullName == typeof(StartableAttribute).FullName).ToArray();
+            return attributes.Length > 0 ? attributes[0] : null;
+        }
+
+
         
         private INodeInfo ExtractNodeInfoFromAttributeData(CustomAttributeData attribute, string filename)
         {
@@ -331,6 +359,10 @@ namespace VVVV.Hosting.Factories
             }
             
             var assembly = Assembly.LoadFrom(assemblyLocation);
+
+            //Check if need to start anything before rest is loaded
+            FStartableRegistry.ProcessAssembly(assembly);
+
             var type = assembly.GetType(nodeInfo.Arguments);
             var attribute = GetPluginInfoAttributeData(type);
             if (attribute != null)

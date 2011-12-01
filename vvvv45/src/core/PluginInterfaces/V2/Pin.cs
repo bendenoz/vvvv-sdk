@@ -33,9 +33,17 @@ namespace VVVV.PluginInterfaces.V2
 			OtherPin = otherPin;
 		}
 	}
+
+    [ComVisible(false)]
+    public interface IPinPluginIO
+    {
+        IPluginIO PluginIO { get; }
+        event PinConnectionEventHandler Connected;
+        event PinConnectionEventHandler Disconnected;
+    }
 	
 	[ComVisible(false)]
-	public abstract class Pin<T> : Spread<T>, IDisposable, IPinUpdater
+    public abstract class Pin<T> : Spread<T>, IDisposable, IPinUpdater, IPinPluginIO
 	{
 		[Import]
 		protected ILogger FLogger;
