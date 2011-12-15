@@ -123,6 +123,8 @@
     <Compile Include="Modules\Lib\Engine\Track.cs" />
     <Compile Include="Modules\Lib\Xml\Serialization\TrackSerializer.cs" />
     <Compile Include="Nodes\Clock\TodoGetMidiClock.cs" />
+    <Compile Include="Nodes\FeedBack\SendCustomFeedBackNode.cs" />
+    <Compile Include="Nodes\Osc\TodoCustomOscDedoderNode.cs" />
     <Compile Include="Nodes\Presets\TodoLoadPresetNode.cs" />
     <Compile Include="Nodes\Presets\TodoSavePresetNode.cs" />
     <Compile Include="Nodes\TodoMapNode.cs">
@@ -139,6 +141,8 @@
     <Compile Include="Nodes\Variables\TodoSetValueNode.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Nodes\Variables\TodoUpdateVariableNode.cs" />
+    <Compile Include="Nodes\Variables\TodoValueChangedNode.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UI\Controls\ListViewEx.cs">
       <SubType>Component</SubType>
