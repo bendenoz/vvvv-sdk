@@ -11,9 +11,11 @@ using SlimDX.Direct3D9;
 using SlimDX;
 using Microsoft.Kinect;
 
+using VVVV.Core.Logging;
+
 namespace VVVV.MSKinect.Nodes
 {
-    [PluginInfo(Name = "RGB", Category = "Kinect",Version="Microsoft", Author = "vux",Tags="directx,texture")]
+    [PluginInfo(Name = "RGB", Category = "Kinect", Version = "Microsoft", Author = "vux,bendenoz", Tags = "directx,texture")]
     public class KinectColorTextureNode : IPluginEvaluate, IPluginConnections, IPluginDXTexture2
     {
         [Input("Kinect Runtime")]
@@ -28,21 +30,24 @@ namespace VVVV.MSKinect.Nodes
 
         private bool FInvalidateConnect = false;
         private bool FInvalidate = true;
+        private bool FInvalidateTexture = false;
 
         private KinectRuntime runtime;
 
         private byte[] colorimage;
         private object m_colorlock = new object();
 
-
+        private int width = 0;
+        private int height = 0;
 
         private Dictionary<Device, Texture> FColorTex = new Dictionary<Device, Texture>();
 
+        [Import()]
+        ILogger FLogger;
 
         [ImportingConstructor()]
         public KinectColorTextureNode(IPluginHost host)
         {
-            this.colorimage = new byte[640 * 480 * 4];
             host.CreateTextureOutput("Texture Out", TSliceMode.Single, TPinVisibility.True, out this.FOutTexture);
         }
 
@@ -103,19 +108,24 @@ namespace VVVV.MSKinect.Nodes
         {
             if (this.runtime != null)
             {
+                if (this.FInvalidateTexture && this.FColorTex.ContainsKey(OnDevice))
+                {
+                    this.FColorTex[OnDevice].Dispose();
+                    this.FColorTex.Remove(OnDevice);
+                    this.FInvalidateTexture = false;
+                }
 
                 if (!this.FColorTex.ContainsKey(OnDevice))
                 {
                     Texture t = null;
                     if (OnDevice is DeviceEx)
                     {
-                        t = new Texture(OnDevice, 640, 480, 1, Usage.Dynamic, Format.X8R8G8B8, Pool.Default);
+                        t = new Texture(OnDevice, this.width, this.height, 1, Usage.Dynamic, Format.X8R8G8B8, Pool.Default);
                     }
                     else
                     {
-                        t = new Texture(OnDevice, 640, 480, 1, Usage.None, Format.X8R8G8B8, Pool.Managed);
+                        t = new Texture(OnDevice, this.width, this.height, 1, Usage.None, Format.X8R8G8B8, Pool.Managed);
                     }
-                    
                     this.FColorTex.Add(OnDevice, t);
                 }
 
@@ -127,7 +137,7 @@ namespace VVVV.MSKinect.Nodes
 
                     lock (this.m_colorlock)
                     {
-                        rect.Data.Write(this.colorimage, 0, 640 * 480 * 4);
+                        rect.Data.Write(this.colorimage, 0, this.width * this.height * 4);
                     }
                     srf.UnlockRectangle();
 
@@ -157,6 +167,14 @@ namespace VVVV.MSKinect.Nodes
 
                 lock (m_colorlock)
                 {
+                    if (frame.Width != this.width || frame.Height != this.height)
+                    {
+                        this.width = frame.Width;
+                        this.height = frame.Height;
+                        this.colorimage = new byte[this.width * this.height * 4];
+                        FLogger.Log(LogType.Message, "hello world, w={0}, h={1}", this.width, this.height);
+                        this.FInvalidateTexture = true;
+                    }
                     frame.CopyPixelDataTo(this.colorimage);
                     //Marshal.Copy(frame..Image.Bits, 0, this.colorimage, 640 * 480 * 4);
                 }
@@ -164,5 +182,6 @@ namespace VVVV.MSKinect.Nodes
                 this.frameindex = frame.FrameNumber;
             }  
         }
+
     }
 }

@@ -9,7 +9,7 @@ using Microsoft.Kinect;
 
 namespace VVVV.MSKinect.Nodes
 {
-    [PluginInfo(Name = "Kinect", Category = "Devices",Version="Microsoft", Author = "vux")]
+    [PluginInfo(Name = "Kinect", Category = "Devices",Version="Microsoft", Author = "vux,bendenoz")]
     public class KinectRuntimeNode : IPluginEvaluate, IDisposable
     {
         [Input("Motor Angle", IsSingle = true,DefaultValue=0.5)]
@@ -20,6 +20,9 @@ namespace VVVV.MSKinect.Nodes
 
         [Input("Enable Color", IsSingle = true)]
         IDiffSpread<bool> FInEnableColor;
+
+        [Input("Enable HD Color", IsSingle = true)]
+        IDiffSpread<bool> FInEnableHDColor;
 
         [Input("Enable Depth", IsSingle = true)]
         IDiffSpread<bool> FInEnableDepth;
@@ -97,9 +100,9 @@ namespace VVVV.MSKinect.Nodes
                     this.runtime.SetDepthMode(this.FInEnableDepth[0]);
                 }
 
-                if (this.FInEnableColor.IsChanged || reset)
+                if (this.FInEnableColor.IsChanged || this.FInEnableHDColor.IsChanged || reset)
                 {
-                    this.runtime.SetColor(this.FInEnableColor[0]);
+                    this.runtime.SetColor(this.FInEnableColor[0], this.FInEnableHDColor[0]);
                 }
 
 
